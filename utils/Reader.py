@@ -1,19 +1,22 @@
 import mpu6050
 import queue
 import threading as th
+from PostprocDefault import PostprocDefault
+
 class Reader():
     __isread = False
     __read_process = None
     __queue = None
-    def __init__(self, sensor: mpu6050.mpu6050) -> None:
+    def __init__(self, sensor: mpu6050.mpu6050, postproc=PostprocDefault(), bias={'a': [0,0,0], 'g': [0,0,0]}) -> None:
         self.sensor = sensor
+        self.postproc = postproc
     
     def __read(self):
         while (self.__isread):
             data_g = self.sensor.get_gyro_data()
             data_a = self.sensor.get_accel_data()
             try:
-                self.__queue.put({'a': data_a, 'g': data_g})
+                self.__queue.put(self.postproc.apply(data_a, data_g))
             except queue.Full:
                 self.__queue.get()
 
@@ -37,7 +40,7 @@ class Reader():
         else:
             data_g = self.sensor.get_gyro_data()
             data_a = self.sensor.get_accel_data()
-            return {'a': data_a, 'g': data_g}
+            return self.postproc.apply(data_a, data_g)
 
 
 

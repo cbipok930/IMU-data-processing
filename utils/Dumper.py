@@ -6,8 +6,8 @@ import threading as th
 import json
 DIRNAME = os.path.dirname(__file__)
 class Dumper(Reader):
-    def __init__(self, sensor, filename = os.path.join(DIRNAME, datetime.datetime.now().strftime("%d.%m.%Y.%H_%M_%S.json"))) -> None:
-        Reader.__init__(self, sensor)
+    def __init__(self, sensor, filename = os.path.join(DIRNAME, datetime.datetime.now().strftime("%d.%m.%Y.%H_%M_%S.json")), *args, **kwargs) -> None:
+        Reader.__init__(self, sensor, *args, **kwargs)
         self.filename = filename
     
     def __read_and_write_duration(self, duration):
@@ -32,13 +32,15 @@ class Dumper(Reader):
         return data
 
     def __dump(self, duration, n_samp):
-        if duration is None:
-            data = self.__read_and_write_nsamp(n_samp)
-        else:
-            data = self.__read_and_write_duration(duration) 
-        with open(self.filename, 'w') as f:
-            json.dump(data, f, indent=2)
-        
+        try:
+            with open(self.filename, 'x') as f:
+                if duration is None:
+                    data = self.__read_and_write_nsamp(n_samp)
+                else:
+                    data = self.__read_and_write_duration(duration)
+                json.dump(data, f, indent=2)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"No such directory: {os.path.dirname(self.filename)}")
     def record_data(self, filename = None, duration=None, blocking=False, n_samp=10):
         if filename is None:
             self.filename = os.path.join(DIRNAME, datetime.datetime.now().strftime("%d.%m.%Y.%H_%M_%S.json"))
@@ -48,13 +50,15 @@ class Dumper(Reader):
             self.__read_process = th.Thread(target=self.__dump, args=(duration, n_samp))
             self.__read_process.start()
         else:
-            if duration is None:
-                data = self.__read_and_write_nsamp(n_samp)
-            else:
-                data = self.__read_and_write_duration(duration)
-            with open(self.filename, 'w') as f:
-                json.dump(data, f, indent=2)
-    
+            try:
+                with open(self.filename, 'x') as f:
+                    if duration is None:
+                        data = self.__read_and_write_nsamp(n_samp)
+                    else:
+                        data = self.__read_and_write_duration(duration)
+                    json.dump(data, f, indent=2)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"No such directory: {os.path.dirname(self.filename)}")
     def wait(self):
         self.__read_process.join()
         self.__read_process = None
