@@ -1,5 +1,5 @@
 import os
-from Reader import Reader
+from utils.Reader import Reader
 import time
 import datetime
 import threading as th

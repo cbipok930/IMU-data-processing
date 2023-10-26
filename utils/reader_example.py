@@ -1,4 +1,4 @@
-from Reader import Reader
+from utils.Reader import Reader
 from mpu6050 import mpu6050
 import time
 

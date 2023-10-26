@@ -1,4 +1,4 @@
-from Dumper import Dumper
+from utils.Dumper import Dumper
 from mpu6050 import mpu6050
 import time
 

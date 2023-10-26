@@ -2,7 +2,7 @@ import numpy as np
 # from mpu6050 import mpu6050
 import time
 import math
-from PostprocDefault import PostprocDefault
+from utils.PostprocDefault import PostprocDefault
 
 class AnglesComp(PostprocDefault):
     roll_old = 0
@@ -16,8 +16,8 @@ class AnglesComp(PostprocDefault):
         end = time.time()
         t_1 =  end - self.time_old
         self.time_old = end
-        pitch = (self.pitch_old + self.deg2rad(g)['y'] * t_1) * self.alpha + (self.alpha-1) * (math.atan(-a['x'] / math.sqrt(a['y'] ** 2 + a['z'] ** 2)))
+        pitch = (self.pitch_old + self.deg2rad(g)['y'] * t_1) * self.alpha + (1 - self.alpha) * (math.atan(-a['x'] / math.sqrt(a['y'] ** 2 + a['z'] ** 2)))
         self.pitch_old = pitch
-        roll = (self.roll_old + self.deg2rad(g)['x'] * t_1) * self.alpha + (self.alpha-1) * math.atan(a['y'] / math.sqrt(a['x'] ** 2 + a['z'] ** 2))
+        roll = (self.roll_old + self.deg2rad(g)['x'] * t_1) * self.alpha + (1-self.alpha) * math.atan(a['y'] / math.sqrt(a['x'] ** 2 + a['z'] ** 2))
         self.roll_old = roll
-        return {'roll': math.degrees(roll), 'pitch': math.degrees(pitch)}
+        return {"roll": math.degrees(roll), "pitch": math.degrees(pitch)}
