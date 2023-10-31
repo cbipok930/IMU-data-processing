@@ -19,10 +19,11 @@ class Reader():
             data_g = self.sensor.get_gyro_data()
             data_a = self.sensor.get_accel_data()
             data_a, data_g = self.apply_bias(data_a, data_g)
+            # print(data_a, data_g)
             try:
-                self.__queue.put(self.postproc.apply(data_a, data_g))
+                self.__queue.put(self.postproc.apply(data_a, data_g), block=False)
             except queue.Full:
-                self.__queue.get()
+                self.__queue.get(block=False)
 
     def start(self):
         self.__isread = True
@@ -42,9 +43,9 @@ class Reader():
             item =  self.__queue.get()
             return item
         else:
-            data_a, data_g = self.apply_bias(data_a, data_g)
             data_g = self.sensor.get_gyro_data()
             data_a = self.sensor.get_accel_data()
+            data_a, data_g = self.apply_bias(data_a, data_g)
             return self.postproc.apply(data_a, data_g)
 
 

@@ -8,14 +8,14 @@ from mpu6050 import mpu6050
 DIRNAME = os.path.abspath(os.path.dirname(__file__))
 parent = os.path.dirname(DIRNAME)
 # print(DIRNAME, parent)
-module_abspath = os.path.join(parent, "utils")
+module_abspath = os.path.join(parent)
 sys.path.append(module_abspath)
-# print(sys.path)
+print(sys.path)
 try:
     sys.path.index(module_abspath)
-    from Dumper import Dumper
-    from AnglesComp import AnglesComp
-    from PostprocDefault import PostprocDefault
+    from utils.Dumper import Dumper
+    from utils.AnglesComp import AnglesComp
+    from utils.PostprocDefault import PostprocDefault
 except ValueError:
     raise ValueError(f'No such folder: {module_abspath}')
 
