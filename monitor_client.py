@@ -10,7 +10,9 @@ import time
 import math
 import json
 
+# plt.plot([1,2], [4,6])
 c = cl.HTTPConnection("192.168.1.80", 8080)
+# c = cl.HTTPConnection("192.168.0.100", 8080)
 
 # start = time.time()
 # while(True):
@@ -31,6 +33,8 @@ xs = []
 ys_r = []
 ys_p = []
 
+# start_t = time.time()
+
 # Initialize communication with TMP102
 
 # This function is called periodically from FuncAnimation
@@ -49,7 +53,8 @@ def animate(i, xs, ys_r, ys_p, conection):
     
     # Add x and y to lists
     datenow = dt.datetime.now()
-    xs.append("%s.%s" % (datenow.second, str(datenow.microsecond)[:2]))
+    xs.append("%s:%s.%s" % (datenow.minute, datenow.second, str(datenow.microsecond)[:2]))
+    # xs.append("%.2lf" % (time.time() - start_t))
     ys_p.append(pitch)
     ys_r.append(roll)
 
@@ -61,17 +66,22 @@ def animate(i, xs, ys_r, ys_p, conection):
     # Draw x and y lists
     ax[0].clear()
     ax[0].plot(xs, ys_p)
+    ax[0].tick_params(axis='x', rotation=85)
     ax[0].set_ylim([-100, 100])
     ax[1].clear()
     ax[1].plot(xs, ys_r)
     ax[1].set_ylim([-100, 100])
+    ax[1].tick_params(axis='x', rotation=85)
 
     # Format plot
     # ax[0].xticks(rotation=45, ha='right')
     # ax[1].xticks(rotation=45, ha='right')
     plt.subplots_adjust(bottom=0.30)
-    ax[0].set_title("Pitch")
-    ax[1].set_title("Roll")
+    # plt.text(-50, 5, s=str(round(pitch)))
+    # ax[0].text(0, 25, s="%.1lf" % (pitch))
+    # ax[1].text(0, 25, s="%.1lf" % (roll))
+    ax[0].set_title("Pitch = %.2lf" % pitch)
+    ax[1].set_title("Roll = %.2lf" % roll)
 
 
 # Set up plot to call animate() function periodically
