@@ -3,6 +3,7 @@ from ahrs.filters import EKF as ahrsEKF
 import numpy as np
 import time
 import math
+import ahrs
 """
 Parameters
 gyr : numpy.ndarray, default: None
@@ -43,21 +44,7 @@ class EKF(PostprocDefault):
         self.time_old = end
         # print(self.aqua.frequency)
         self.Q = self.ekf.update(self.Q, gyr=self.dict2arr(self.deg2rad(g)), acc=self.dict2arr(a))
-
-        ww = self.Q[0]
-        xx = self.Q[1]
-        yy = self.Q[2]
-        zz = self.Q[3]
-        t0 = +2.0 * (ww * xx + yy * zz)
-        t1 = +1.0 - 2.0 * (xx * xx + yy * yy)
-        roll = math.atan2(t0, t1)
-    
-        # t2 = +2.0 * (ww * yy - zz * xx)
-        # t2 = +1.0 if t2 > +1.0 else t2
-        # t2 = -1.0 if t2 < -1.0 else t2
-        # pitch = math.asin(t2)
-        t0 = math.sqrt(1 + 2 * (ww * yy - xx * zz))
-        t1 = math.sqrt(1 - 2 * (ww * yy - xx * zz))
-        pitch = 2 * math.atan2(t0, t1) - math.pi / 2
-        
+        rm = ahrs.common.orientation.q2R(self.Q)
+        roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
+        pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
         return {"roll": math.degrees(roll), "pitch": math.degrees(pitch)}

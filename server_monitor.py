@@ -67,8 +67,8 @@ if __name__ == '__main__':
     calib(reader, 500)
     # reader.postproc = Madgwick.Madgwick(0.033)
     # reader.postproc = AnglesComp.AnglesComp()
-    # reader.postproc = AQUA.AQUA()
-    reader.postproc = EKF.EKF()
+    reader.postproc = AQUA.AQUA()
+    # reader.postproc = EKF.EKF()
     #bias {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]}
     # reader = Reader.Reader(sensor, Madgwick.Madgwick(gain=0.033), {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]})
     # reader = Reader.Reader(sensor, AnglesComp.AnglesComp(alpha=0.1), {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]})
