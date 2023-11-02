@@ -41,8 +41,12 @@ class Madgwick(PostprocDefault):
         t1 = +1.0 - 2.0 * (xx * xx + yy * yy)
         roll = math.atan2(t0, t1)
     
-        t2 = +2.0 * (ww * yy - zz * xx)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch = math.asin(t2)
+        # t2 = +2.0 * (ww * yy - zz * xx)
+        # t2 = +1.0 if t2 > +1.0 else t2
+        # t2 = -1.0 if t2 < -1.0 else t2
+        # pitch = math.asin(t2)
+        t0 = math.sqrt(1 + 2 * (ww * yy - xx * zz))
+        t1 = math.sqrt(1 - 2 * (ww * yy - xx * zz))
+        pitch = 2 * math.atan2(t0, t1) - math.pi / 2
+        
         return {"roll": math.degrees(roll), "pitch": math.degrees(pitch)}

@@ -33,7 +33,7 @@ class EKF(PostprocDefault):
         return {'x': np.deg2rad(dat['x']), 'y': np.deg2rad(dat['y']), 'z': np.deg2rad(dat['z'])}
     def dict2arr(self, dat):
         return [dat['x'], dat['y'], dat['z']]
-    def __init__(self, frame = "NED", noises = [0.3**2, 0.5**2, 0.8**2]) -> None:
+    def __init__(self, frame = "ENU", noises = [0.3**2, 0.5**2, 0.8**2]) -> None:
         self.ekf = ahrsEKF(frame= frame, noises = noises)
         self.Q = np.tile([1., 0.,0.,0.], (1))
     def apply(self, a, g):
@@ -52,9 +52,12 @@ class EKF(PostprocDefault):
         t1 = +1.0 - 2.0 * (xx * xx + yy * yy)
         roll = math.atan2(t0, t1)
     
-        t2 = +2.0 * (ww * yy - zz * xx)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch = math.asin(t2)
+        # t2 = +2.0 * (ww * yy - zz * xx)
+        # t2 = +1.0 if t2 > +1.0 else t2
+        # t2 = -1.0 if t2 < -1.0 else t2
+        # pitch = math.asin(t2)
+        t0 = math.sqrt(1 + 2 * (ww * yy - xx * zz))
+        t1 = math.sqrt(1 - 2 * (ww * yy - xx * zz))
+        pitch = 2 * math.atan2(t0, t1) - math.pi / 2
         
         return {"roll": math.degrees(roll), "pitch": math.degrees(pitch)}
