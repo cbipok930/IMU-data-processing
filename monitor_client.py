@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import http.client as cl
@@ -9,9 +11,14 @@ import numpy as np
 import time
 import math
 import json
+import argparse
+
+parser = argparse.ArgumentParser(description='Plotting Client')
+parser.add_argument("port")
+args = parser.parse_args()
 
 # plt.plot([1,2], [4,6])
-c = cl.HTTPConnection("192.168.1.80", 8080)
+c = cl.HTTPConnection("192.168.1.80", int(args.port))
 # c = cl.HTTPConnection("192.168.0.100", 8080)
 
 # start = time.time()
@@ -86,5 +93,5 @@ def animate(i, xs, ys_r, ys_p, conection):
 
 # Set up plot to call animate() function periodically
 # anim = MyFuncAnim()
-ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys_r, ys_p, c), interval=0)
+ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys_r, ys_p, c), interval=0, save_count=10)
 plt.show()
