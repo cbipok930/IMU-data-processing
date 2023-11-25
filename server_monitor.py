@@ -1,3 +1,4 @@
+import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import utils.AnglesComp as AnglesComp
@@ -62,18 +63,27 @@ def run(reader, server_class=HTTPServer, handler_class=S, port=8080):
 if __name__ == '__main__':
     # print("dsf")
     from sys import argv
+    parser = argparse.ArgumentParser(description='Plotting Server')
+    parser.add_argument("alg", choices=["ekf", "comp", "aqua", "madgwick"])
+    parser.add_argument("port")
+    args = parser.parse_args()
     sensor = mpu6050(0x68)
     reader = Reader.Reader(sensor)
     calib(reader, 500)
+
+    algs = {"ekf": EKF.EKF, "comp": AnglesComp.AnglesComp, "aqua": AQUA.AQUA, "madgwick": Madgwick.Madgwick}
     # reader.postproc = Madgwick.Madgwick(0.033)
     # reader.postproc = AnglesComp.AnglesComp()
     # reader.postproc = AQUA.AQUA()
-    reader.postproc = EKF.EKF()
+    # reader.postproc = EKF.EKF()
+    reader.postproc = algs[args.alg]()
     #bias {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]}
     # reader = Reader.Reader(sensor, Madgwick.Madgwick(gain=0.033), {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]})
     # reader = Reader.Reader(sensor, AnglesComp.AnglesComp(alpha=0.1), {'a': [-0.4877683100219731, -0.04, -0.42], 'g':[4.97, 2.48857, 2.1388]})
     reader.start()
-    if len(argv) == 2:
-        run(reader, port=int(argv[1]))
-    else:
-        run(reader)
+    run(reader, port=int(args.port))
+    print(reader.bias)
+    # if len(argv) == 2:
+    #     run(reader, port=int(argv[1]))
+    # else:
+    #     run(reader)
