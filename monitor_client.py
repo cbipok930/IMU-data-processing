@@ -14,11 +14,13 @@ import json
 import argparse
 
 parser = argparse.ArgumentParser(description='Plotting Client')
+parser.add_argument("ip")
 parser.add_argument("port")
 args = parser.parse_args()
 
 # plt.plot([1,2], [4,6])
-c = cl.HTTPConnection("192.168.1.80", int(args.port))
+#192.168.1.81
+c = cl.HTTPConnection(args.ip, int(args.port))
 # c = cl.HTTPConnection("192.168.0.100", 8080)
 
 # start = time.time()
