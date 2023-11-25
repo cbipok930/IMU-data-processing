@@ -6,6 +6,7 @@ from datetime import datetime
 from mpu6050 import mpu6050
 
 import numpy as np
+import ahrs
 from ahrs.filters import EKF as ahrsEKF
 
 class Imu(mpu6050):
@@ -292,17 +293,9 @@ class Imu(mpu6050):
                                              gyr=dict2arr(deg2rad(gyroscope_data)),
                                                acc=dict2arr(accelerometer_data))
         
-        ww = self.ekf_Q[0]
-        xx = self.ekf_Q[1]
-        yy = self.ekf_Q[2]
-        zz = self.ekf_Q[3]
-        t0 = +2.0 * (ww * xx + yy * zz)
-        t1 = +1.0 - 2.0 * (xx * xx + yy * yy)
-        self._filt_roll = math.atan2(t0, t1)
-    
-        t0 = math.sqrt(1 + 2 * (ww * yy - xx * zz))
-        t1 = math.sqrt(1 - 2 * (ww * yy - xx * zz))
-        self._filt_pitch = 2 * math.atan2(t0, t1) - math.pi / 2
+        rm = ahrs.common.orientation.q2R(self.ekf_Q)
+        self._filt_roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
+        self._filt_pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
 
         return (self._filt_pitch, self._filt_roll, self._filt_yaw)
     
