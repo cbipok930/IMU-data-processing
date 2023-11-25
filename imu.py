@@ -247,7 +247,7 @@ class Imu(mpu6050):
         return [offset_ax, offset_ay, offset_az], [offset_gx, offset_gy, offset_gz]
     
     def set_offsets(self, count):
-        o_a, o_g = self.get_offests(count)
+        o_a, o_g = self.get_offsets(count)
         self.OFFSET_AX = o_a[0]
         self.OFFSET_AY = o_a[1]
         self.OFFSET_AZ = o_a[2]
@@ -388,8 +388,8 @@ def show_raw_data():
         time.sleep(0.1)
 
 def show_rpy_and_filtered_data():
-    device = Imu(0x68, 5)
-    device.set_offsets(100)
+    device = Imu(0x68)
+    device.set_offsets(300)
     while True:
         # filtered_roll, filtered_pitch, filtered_yaw = device.get_filtered_data(True)
         # filtered_roll = math.degrees(filtered_roll)
