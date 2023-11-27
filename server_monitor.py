@@ -6,14 +6,20 @@ import utils.Madgwick as Madgwick
 import utils.AQUA as AQUA
 import utils.EKF as EKF
 import utils.Reader as Reader
-from mpu6050 import mpu6050
+import utils.ReaderBNO08x as ReaderBNO08x
 from functools import partial
+
+from mpu6050 import mpu6050
+
+import busio
+from adafruit_bno08x.i2c import BNO08X_I2C
+from adafruit_bno08x import BNO_REPORT_ACCELEROMETER, BNO_REPORT_GYROSCOPE, BNO_REPORT_MAGNETOMETER
 
 def calib(reader: Reader.Reader, n_s=100):
     samples = []
     for _ in range(n_s):
         samples.append(reader.get_data())
-    bias = {'a':{'x':0., 'y':0., 'z':sensor.GRAVITIY_MS2}, 'g':{'x':0., 'y':0., 'z':0.}}
+    bias = {'a':{'x':0., 'y':0., 'z':9.80665}, 'g':{'x':0., 'y':0., 'z':0.}}
     for device in ['a', 'g']:
         for k in ['x', 'y', 'z']:
             bias[device][k] -= sum([el[device][k] for el in samples])/n_s
@@ -64,11 +70,20 @@ if __name__ == '__main__':
     # print("dsf")
     from sys import argv
     parser = argparse.ArgumentParser(description='Plotting Server')
+    parser.add_argument("sensor", choices=["mpu", "bno"])
     parser.add_argument("alg", choices=["ekf", "comp", "aqua", "madgwick"])
     parser.add_argument("port")
     args = parser.parse_args()
-    sensor = mpu6050(0x68)
-    reader = Reader.Reader(sensor)
+    if args.sensor == "mpu":
+        sensor = mpu6050(0x68, 1)
+        reader = Reader.Reader(sensor)
+    else:
+        i2c = busio.I2C((1, 14), (1, 15))
+        sensor = BNO08X_I2C(i2c, address=0x4b)
+        sensor.enable_feature(BNO_REPORT_ACCELEROMETER)
+        sensor.enable_feature(BNO_REPORT_MAGNETOMETER)
+        sensor.enable_feature(BNO_REPORT_GYROSCOPE)
+        reader = ReaderBNO08x.Reader(sensor)
     calib(reader, 500)
 
     algs = {"ekf": EKF.EKF, "comp": AnglesComp.AnglesComp, "aqua": AQUA.AQUA, "madgwick": Madgwick.Madgwick}
@@ -87,3 +102,4 @@ if __name__ == '__main__':
     #     run(reader, port=int(argv[1]))
     # else:
     #     run(reader)
+    #{'a': [-0.014901511132812505, 0.2494183521484374, -0.3716040396728566], 'g': [4.9435572519083975, 2.5276946564885474, 2.0506870229007617]}
