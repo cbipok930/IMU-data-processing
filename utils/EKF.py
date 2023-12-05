@@ -33,18 +33,21 @@ class EKF(PostprocDefault):
     def deg2rad(self, dat):
         return {'x': np.deg2rad(dat['x']), 'y': np.deg2rad(dat['y']), 'z': np.deg2rad(dat['z'])}
     def dict2arr(self, dat):
+        if dat is None:
+            return None
         return [dat['x'], dat['y'], dat['z']]
     def __init__(self, frame = "ENU", noises = [0.3**2, 0.5**2, 0.8**2]) -> None:
         self.ekf = ahrsEKF(frame= frame, noises = noises)
         self.Q = np.tile([1., 0.,0.,0.], (1))
-    def apply(self, a, g):
+    def apply(self, a, g, m):
         end = time.time()
         self.ekf.Dt =  end - self.time_old
         self.ekf.frequency = self.ekf.Dt ** (-1)
         self.time_old = end
         # print(self.aqua.frequency)
-        self.Q = self.ekf.update(self.Q, gyr=self.dict2arr(self.deg2rad(g)), acc=self.dict2arr(a))
+        self.Q = self.ekf.update(self.Q, gyr=self.dict2arr(self.deg2rad(g)), acc=self.dict2arr(a), mag=self.dict2arr(m))
         rm = ahrs.common.orientation.q2R(self.Q)
         roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
         pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
-        return {"roll": math.degrees(roll), "pitch": math.degrees(pitch)}
+        yaw = math.atan2(rm[1][0], rm[0][0])
+        return {"roll": math.degrees(roll), "pitch": math.degrees(pitch), "yaw": math.degrees(yaw)}

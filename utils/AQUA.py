@@ -36,7 +36,7 @@ class AQUA(PostprocDefault):
     def __init__(self, alpha= 0.01, threshold= 0.9, adaptive = False) -> None:
         self.aqua= ahrsAQUA(alpha=alpha, threshold=threshold, adaptive=adaptive)
         self.Q = np.tile([1., 0.,0.,0.], (1))
-    def apply(self, a, g):
+    def apply(self, a, g, m):
         end = time.time()
         self.aqua.Dt =  end - self.time_old
         self.aqua.frequency = self.aqua.Dt ** (-1)

@@ -28,8 +28,7 @@ class Reader():
             # print(data_a, data_g)
             try:
                 # print(data_a, data_g)
-                dat = self.postproc.apply(data_a, data_g)
-                dat.update({"m": data_m})
+                dat = self.postproc.apply(data_a, data_g, data_m)
                 self.__queue.put(dat, block=False)
             except queue.Full:
                 self.__queue.get(block=False)
@@ -59,6 +58,5 @@ class Reader():
             data_g = {"x": g_x, "y": g_y, "z": g_z}
             data_m = {"x": m_x, "y": m_y, "z": m_z}
             data_a, data_g, data_m = self.apply_bias(data_a, data_g, data_m)
-            dat = self.postproc.apply(data_a, data_g)
-            dat.update({"m": data_m})
+            dat = self.postproc.apply(data_a, data_g, data_m)
             return dat

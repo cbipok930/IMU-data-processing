@@ -22,7 +22,7 @@ class Madgwick(PostprocDefault):
     def __init__(self, gain) -> None:
         self.madgwick = ahrsMadgwick(gain=gain)
         self.Q = np.tile([1., 0.,0.,0.], (1))
-    def apply(self, a, g):
+    def apply(self, a, g, m):
         end = time.time()
         self.madgwick.Dt =  end - self.time_old
         self.madgwick.frequency = self.madgwick.Dt ** (-1)

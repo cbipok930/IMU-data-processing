@@ -8,14 +8,16 @@ import math
 import numpy as np
 
 class Imu(BNO08X_I2C):
-    def __init__(self, i2c_bus, reset=None, address=..., debug=False):
+    def __init__(self, i2c_bus, reset=None, address=..., debug=False, features = [BNO_REPORT_ACCELEROMETER, BNO_REPORT_MAGNETOMETER, BNO_REPORT_GYROSCOPE]):
         super().__init__(i2c_bus, reset, address, debug)
 
         self.initialize()
-        self.enable_feature(BNO_REPORT_ACCELEROMETER)
-        self.enable_feature(BNO_REPORT_MAGNETOMETER)
-        self.enable_feature(BNO_REPORT_GYROSCOPE)
-        self.enable_feature(BNO_REPORT_GRAVITY)
+        for fe in features:
+            self.enable_feature(fe)
+            # self.enable_feature(BNO_REPORT_ACCELEROMETER)
+            # self.enable_feature(BNO_REPORT_MAGNETOMETER)
+            # self.enable_feature(BNO_REPORT_GYROSCOPE)
+            # self.enable_feature(BNO_REPORT_GRAVITY)
         self.begin_calibration()
 
         self._filt_pitch = 0
@@ -27,7 +29,7 @@ class Imu(BNO08X_I2C):
         #ekf fields
         self.ekf_module = None
         self.ekf_Q = None
-        self.ekf_last_timestamp = self._last_timestamp
+        self.ekf_last_timestamp = 0
         #/ekf fields
     
     def get_accel_data(self, g=False):
@@ -63,6 +65,7 @@ class Imu(BNO08X_I2C):
     def init_ekf(self, frame = "ENU", noises = [0.3**2, 0.5**2, 0.8**2]):
         self.ekf_module = ahrs.filters.EKF(frame= frame, noises = noises)
         self.ekf_Q = np.tile(self.euler_to_quaternion(), (1))
+        self._last_timestamp = time.time()
         self.ekf_last_timestamp = self._last_timestamp
     
     def get_ekf_angles(self):
@@ -99,6 +102,34 @@ class Imu(BNO08X_I2C):
 
         return (self._filt_roll, self._filt_pitch, self._filt_yaw)
 
+def frequency(process_func, count=1000, n=10, init_functions = []):
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b, features=[])
+    for f in init_functions:
+        f(device)
+    freqs = []
+    all_intervals = []
+    for i in range(n):
+        last_timestamp = time.time()
+        intervals = []
+        for _ in range(count):
+            process_func(device)
+            end = time.time()
+            intervals.append(end - last_timestamp)
+            last_timestamp = end
+        freqs.append((sum(intervals)/len(intervals))**(-1))
+        print(f"Frequency: {freqs[i]} Hz")
+        print(f"Max interval: {max(intervals)} s\nMin interval: {min(intervals)} s")
+        print(f"Std: {np.std(intervals)} s")
+        all_intervals += intervals
+    print("SUMMARY")
+    print(f"Mean frequency: {sum(freqs)/len(freqs)} Hz")
+    print(f"Max: {max(freqs)} Hz\nMin: {min(freqs)} Hz")
+    print(f"Std: {np.std(freqs)} Hz")
+    print(f"Min interval: {min(all_intervals)} s\nMax interval: {max(all_intervals)}")
+    return all_intervals
+
+
 def show_raw_data():
     i2c = busio.I2C((1, 14), (1, 15))
     device = Imu(i2c, address=0x4b)
@@ -112,21 +143,129 @@ def show_raw_data():
 
 def show_builtin_rpy():
     i2c = busio.I2C((1, 14), (1, 15))
-    device = Imu(i2c, address=0x4b)
+    device = Imu(i2c, address=0x4b, features=[BNO_REPORT_ROTATION_VECTOR])
     device.enable_feature(BNO_REPORT_ROTATION_VECTOR)
     while True:
         x, y, z, w = device.quaternion
         r, p, y = device.q2angles(np.array([w, x, y, z]))
         print(f"roll: {math.degrees(r):3.4f}\tpitch: {math.degrees(p):3.4f}\tyaw: {math.degrees(y):3.4f}")
 
+def show_magnetic_rpy():
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b, features=[BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR])
+    while True:
+        x, y, z, w = device.geomagnetic_quaternion
+        r, p, y = device.q2angles(np.array([w, x, y, z]))
+        print(f"roll: {math.degrees(r):3.4f}\tpitch: {math.degrees(p):3.4f}\tyaw: {math.degrees(y):3.4f}")
+
 def show_filtred_rpy():
     i2c = busio.I2C((1, 14), (1, 15))
     device = Imu(i2c, address=0x4b)
-    device.init_ekf()
+    # device.init_ekf()
     while True:
         r, p, y = device.get_ekf_angles()
         print(f"roll: {math.degrees(r):3.4f}\tpitch: {math.degrees(p):3.4f}\tyaw: {math.degrees(y):3.4f}")
 
+def show_gravity():
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b, features=[BNO_REPORT_GRAVITY, BNO_REPORT_ACCELEROMETER])
+    while True:
+        print("GRAVITY: ", device.gravity)
+        print("ACC: ", device.acceleration)
+        time.sleep(0.1)
+    
+
+
+def __get_raw(dev:Imu):
+    accel_data = dev.get_accel_data(g=False)
+    gyro_data = dev.get_gyro_data()
+    mag_data = dev.get_magnetic_data()
+    return [accel_data, gyro_data, mag_data]
+def __get_rpy_q_geomagnetic(dev:Imu):
+    x, y, z, w = dev.geomagnetic_quaternion
+    return np.tile([w, x, y, z], (1))
+def __get_rpy_q_builtin(dev:Imu):
+    x, y, z, w = dev.quaternion
+    return np.tile([w, x, y, z], (1))
+def __get_rpy_q_ekf(dev:Imu):
+    a, g, m = __get_raw(dev)
+    end = time.time()
+    dev.ekf_module.Dt =  end - dev._last_timestamp
+    dev.ekf_module.frequency = dev.ekf_module.Dt ** (-1)
+    dev._last_timestamp = end
+    dev.ekf_last_timestamp = end
+    def dict2arr(dat):
+        return [dat['x'], dat['y'], dat['z']]
+    dev.ekf_Q = dev.ekf_module.update(dev.ekf_Q, gyr=dict2arr(g), acc=dict2arr(a), mag=dict2arr(m))
+    return dev.ekf_Q
+
+def summary_monitor():
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b)
+    device.enable_feature(BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR)
+    device.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+    device.init_ekf()
+    while True:
+        q_geomag = __get_rpy_q_geomagnetic(device)
+        q_rpy = __get_rpy_q_builtin(device)
+        q_ekf = __get_rpy_q_ekf(device)
+        print(f"GEOMAGNETIC_ROTATION_VECTOR: {q_geomag}")
+        print(f"ROTATION_VECTOR: {q_rpy}")
+        print(f"EKF_ROTATION_VECTOR: {q_ekf}\n")
+
+        print("GEOMAGNETIC_RPY: ", [math.degrees(i) for i in device.q2angles(np.array(q_geomag))])
+        print("ROTATION_RPY: ", [math.degrees(i) for i in device.q2angles(np.array(q_rpy))])
+        print("EKF_RPY: ", [math.degrees(i) for i in device.q2angles(np.array(q_ekf))], "\n\n")
+
+def write_summary(fp, count=10000):
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b)
+    device.enable_feature(BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR)
+    device.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+    device.init_ekf()
+    data = []
+    for _ in range(count):
+        q_geomag = __get_rpy_q_geomagnetic(device)
+        q_rpy = __get_rpy_q_builtin(device)
+        q_ekf = __get_rpy_q_ekf(device)
+        data.append({"GEOMAG": list(q_geomag), "RPY": list(q_rpy), "EKF": list(q_ekf)})
+    with open(fp, "w") as f:
+        import json
+        json.dump(data, f)
+
+def write_summary_angles(fp, count=10000):
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b)
+    device.enable_feature(BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR)
+    device.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+    device.init_ekf()
+    data = []
+    def to_angles(device, q):
+        return [math.degrees(i) for i in device.q2angles(np.array(q))]
+    for _ in range(count):
+        q_geomag = __get_rpy_q_geomagnetic(device)
+        q_rpy = __get_rpy_q_builtin(device)
+        q_ekf = __get_rpy_q_ekf(device)
+        data.append({"GEOMAG": to_angles(device, q_geomag), "RPY": to_angles(device, q_rpy), "EKF": to_angles(device, q_ekf)})
+    with open(fp, "w") as f:
+        import json
+        json.dump(data, f)
+   
+
 
 if __name__ == "__main__":
-    show_filtred_rpy()
+    # intervals = frequency(__get_rpy_q_builtin, init_functions=[lambda x: x.enable_feature(BNO_REPORT_ROTATION_VECTOR)])
+    # intervals = frequency(__get_raw)
+    # intervals = frequency(__get_rpy_q_ekf, init_functions=[Imu.init_ekf])
+    # intervals = frequency(__get_rpy_q_geomagnetic, init_functions=[lambda x: x.enable_feature(BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR)])
+    # with open("./data/intervals_geomagnetic_rpy.json", "w") as f:
+    #     import json
+    #     json.dump(intervals, f)
+    # show_magnetic_rpy()
+    # show_builtin_rpy()
+    # show_filtred_rpy()
+    # summary_monitor()
+    show_gravity()
+    # write_summary_angles("./data/test2.json")
+    
+

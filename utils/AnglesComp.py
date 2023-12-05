@@ -12,7 +12,7 @@ class AnglesComp(PostprocDefault):
         return {'x': np.deg2rad(dat['x']), 'y': np.deg2rad(dat['y']), 'z': np.deg2rad(dat['z'])}
     def __init__(self, alpha = 0.5):
         self.alpha = 0.5
-    def apply(self, a, g):
+    def apply(self, a, g, m):
         end = time.time()
         t_1 =  end - self.time_old
         self.time_old = end
