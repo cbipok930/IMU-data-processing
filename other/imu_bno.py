@@ -31,6 +31,16 @@ class Imu(BNO08X_I2C):
         self.ekf_Q = None
         self.ekf_last_timestamp = 0
         #/ekf fields
+        #madgwick fields
+        self.madgwick_module = None
+        self.madgwick_Q = None
+        self.madgwick_last_timestamp = 0
+        #/madgwick fields
+        #quest fields
+        self.quest_module = None
+        self.quest_Q = None
+        self.quest_last_timestamp = 0
+        #/quest fields
     
     def get_accel_data(self, g=False):
         if g:
@@ -62,15 +72,26 @@ class Imu(BNO08X_I2C):
         qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
         return [qw, qx, qy, qz]
 
+    #0.3**2 0.5**2 0.8**2
     def init_ekf(self, frame = "ENU", noises = [0.3**2, 0.5**2, 0.8**2]):
         self.ekf_module = ahrs.filters.EKF(frame= frame, noises = noises)
         self.ekf_Q = np.tile(self.euler_to_quaternion(), (1))
         self._last_timestamp = time.time()
         self.ekf_last_timestamp = self._last_timestamp
     
+    def init_madgwick(self, gain=0.033):
+        self.madgwick_module = ahrs.filters.Madgwick(gain=gain)
+        self.madgwick_Q = np.tile(self.euler_to_quaternion(), (1))
+        self._last_timestamp = time.time()
+        self.madgwick_last_timestamp = self._last_timestamp
+    
+    # def init_quest(self):
+    #     self.quest_module = ahrs.filters.QUEST()
+    #     self.quest_module.
+    
     def get_ekf_angles(self):
 
-        if self.ekf_module == None or self.ekf_last_timestamp != self._last_timestamp:
+        if self.ekf_module is None or self.ekf_last_timestamp != self._last_timestamp:
             self.init_ekf()
         # Get accelerometer data
         accelerometer_data = self.get_accel_data()
@@ -101,6 +122,47 @@ class Imu(BNO08X_I2C):
         self._filt_yaw = math.atan2(rm[1][0], rm[0][0])
 
         return (self._filt_roll, self._filt_pitch, self._filt_yaw)
+    
+    def get_madgwick_angles(self):
+
+        if self.madgwick_module is None or self.madgwick_last_timestamp != self._last_timestamp:
+            self.init_madgwick()
+        accelerometer_data = self.get_accel_data()
+        gyroscope_data = self.get_gyro_data()
+        mag_data = self.get_magnetic_data()
+
+        end = time.time()
+        self.madgwick_module.Dt =  end - self._last_timestamp
+        self.madgwick_module.frequency = self.madgwick_module.Dt ** (-1)
+        self._last_timestamp = end
+        self.madgwick_last_timestamp = end
+        
+        def dict2arr(dat):
+            return [dat['x'], dat['y'], dat['z']]
+        
+        self.madgwick_Q = self.madgwick_module.updateMARG(self.madgwick_Q, gyr=dict2arr(gyroscope_data), acc=dict2arr(accelerometer_data), mag=dict2arr(mag_data))
+        # self.ekf_Q = self.ekf_module.update(self.ekf_Q, gyr=dict2arr(gyroscope_data), acc=dict2arr(accelerometer_data), mag=dict2arr(mag_data))
+        rm = ahrs.common.orientation.q2R(self.madgwick_Q)
+        self._filt_roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
+        self._filt_pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
+        self._filt_yaw = math.atan2(rm[1][0], rm[0][0])
+
+        return (self._filt_roll, self._filt_pitch, self._filt_yaw)
+    
+    def get_ekf_gravity(self):
+        r, p, y = self.get_ekf_angles()
+        g = (0, 0, 9.8)
+        x1 = -math.cos(y)* math.cos(p)
+        x2 = -math.sin(y) * math.cos(p)
+        x3 = -math.sin(p)
+        y1 = -math.cos(y)*math.sin(p)*math.sin(r)-math.sin(y)*math.cos(r)
+        y2 = -math.sin(y)*math.sin(p)*math.sin(r)+math.cos(y)*math.cos(r)
+        y3 =  math.cos(p)*math.sin(r)
+        z1, z2, z3 = np.cross([x1, x2, x3], [y1, y2, y3])
+        g1 = (np.dot([x1, x2, x3], g) / np.linalg.norm([x1, x2, x3]))
+        g2 = (np.dot([y1, y2, y3], g) / np.linalg.norm([y1, y2, y3]))
+        g3 = (np.dot([z1, z2, z3], g) / np.linalg.norm([z1, z2, z3]))
+        return (g1, g2, g3)
 
 def frequency(process_func, count=1000, n=10, init_functions = []):
     i2c = busio.I2C((1, 14), (1, 15))
@@ -158,12 +220,13 @@ def show_magnetic_rpy():
         r, p, y = device.q2angles(np.array([w, x, y, z]))
         print(f"roll: {math.degrees(r):3.4f}\tpitch: {math.degrees(p):3.4f}\tyaw: {math.degrees(y):3.4f}")
 
-def show_filtred_rpy():
+def show_filtred_rpy(filter = Imu.get_ekf_angles):
     i2c = busio.I2C((1, 14), (1, 15))
     device = Imu(i2c, address=0x4b)
     # device.init_ekf()
     while True:
-        r, p, y = device.get_ekf_angles()
+        # r, p, y = device.get_ekf_angles()
+        r, p, y = filter(device)
         print(f"roll: {math.degrees(r):3.4f}\tpitch: {math.degrees(p):3.4f}\tyaw: {math.degrees(y):3.4f}")
 
 def show_gravity():
@@ -173,6 +236,14 @@ def show_gravity():
         print("GRAVITY: ", device.gravity)
         print("ACC: ", device.acceleration)
         time.sleep(0.1)
+
+def show_filtred_gravity():
+    i2c = busio.I2C((1, 14), (1, 15))
+    device = Imu(i2c, address=0x4b)
+    while True:
+        g1, g2, g3 = device.get_ekf_gravity()
+        print("GRAVITY: ", g1, g2, g3)
+
     
 
 
@@ -263,9 +334,9 @@ if __name__ == "__main__":
     #     json.dump(intervals, f)
     # show_magnetic_rpy()
     # show_builtin_rpy()
-    # show_filtred_rpy()
+    show_filtred_rpy()
     # summary_monitor()
-    show_gravity()
+    # show_filtred_gravity()
     # write_summary_angles("./data/test2.json")
     
 
