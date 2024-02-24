@@ -8,6 +8,7 @@ import ahrs
 import math
 import pyrealsense2.pyrealsense2  as rs
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 def q2angles(Q):
         rm = ahrs.common.orientation.q2R(Q)
@@ -16,7 +17,15 @@ def q2angles(Q):
         yaw = math.atan2(rm[1][0], rm[0][0])
         return roll, pitch, yaw
 
-
+t265_2_bnoR = R.from_euler('zyx', [0, 0, -90], degrees=True)
+"""
+x:pi/2
+x=-x
+"""
+def t265_to_bno(vec):
+    vec = t265_2_bnoR.apply(vec)
+    vec[0] = -vec[0]
+    return vec
 
 import pyrealsense2 as rs2
 ctx = rs2.context()
@@ -40,14 +49,16 @@ pipeline.start(config)
         # a = self.get_data()
 import time
 while True:
-    frames = pipeline.wait_for_frames()
+    frames = pipeline.wait_for_frames(1500)
     dof6 = rs.pose_frame(frames[4]).get_pose_data()
     pose = {"x": dof6.translation.x, "y": dof6.translation.y, "z": dof6.translation.z}
     rot = {"x": dof6.rotation.x, "y": dof6.rotation.y, "z": dof6.rotation.z, "w": dof6.rotation.w}
 
             # t2 = time.time()
             # data.append(((t1 + t2)/2, a, pose, rot))
-    print(f"{pose['x']:.1f}  {pose['y']:.1f}   {pose['z']:.1f}")
+    x, y, z = pose["x"], pose["y"], pose["z"]
+    x, y, z = t265_to_bno(np.array([x, y, z]))
+    print(f"{x:.1f}  {y:.1f}   {z:.1f}")
 #     print(f"{rot['x']:.1f}  {rot['y']:.1f}   {rot['z']:.1f} {rot['w']:.1f}")
     x, y, z, w = (rot["x"], rot["y"], rot["z"], rot["w"])
     r, p, y = q2angles(np.array([w, x, y, z]))

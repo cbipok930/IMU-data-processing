@@ -5,6 +5,19 @@ import datetime
 import threading as th
 import json
 import pyrealsense2.pyrealsense2  as rs
+from scipy.spatial.transform import Rotation as R
+import numpy as np
+
+t265_2_bnoR = R.from_euler('zyx', [0, 0, -90], degrees=True)
+"""
+x:pi/2
+x=-x
+"""
+def t265_to_bno(vec):
+    vec = t265_2_bnoR.apply(vec)
+    vec[0] = -vec[0]
+    return vec
+
 DIRNAME = os.path.dirname(__file__)
 """
 i2c = busio.I2C((1, 14), (1, 15))
@@ -32,6 +45,8 @@ class Dumper(Reader):
         frames = self.pipeline.wait_for_frames()
         dof6 = rs.pose_frame(frames[4]).get_pose_data()
         pose = {"x": dof6.translation.x, "y": dof6.translation.y, "z": dof6.translation.z}
+        x, y, z = pose["x"], pose["y"], pose["z"]
+        x, y, z = t265_to_bno(np.array([x, y, z]))
         rot = {"x": dof6.rotation.x, "y": dof6.rotation.y, "z": dof6.rotation.z, "w": dof6.rotation.w}
 
         t2 = time.time()
