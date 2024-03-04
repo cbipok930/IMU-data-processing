@@ -9,8 +9,9 @@ import argparse
 from mpu6050 import mpu6050
 
 import busio
-from adafruit_bno08x.i2c import _BNO08X_DEFAULT_ADDRESS, BNO08X_I2C
-from adafruit_bno08x import BNO_REPORT_ACCELEROMETER, BNO_REPORT_GYROSCOPE, BNO_REPORT_MAGNETOMETER, BNO_REPORT_GRAVITY, BNO_REPORT_GAME_ROTATION_VECTOR, BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR, BNO_REPORT_ROTATION_VECTOR
+from imu_bno import Imu
+# from adafruit_bno08x.i2c import _BNO08X_DEFAULT_ADDRESS, BNO08X_I2C
+# from adafruit_bno08x import BNO_REPORT_ACCELEROMETER, BNO_REPORT_GYROSCOPE, BNO_REPORT_MAGNETOMETER, BNO_REPORT_GRAVITY, BNO_REPORT_GAME_ROTATION_VECTOR, BNO_REPORT_GEOMAGNETIC_ROTATION_VECTOR, BNO_REPORT_ROTATION_VECTOR
 
 # from adafruit_bno08x.i2c import BNO08X_I2C
 # from adafruit_bno08x import BNO_REPORT_ACCELEROMETER, BNO_REPORT_GYROSCOPE, BNO_REPORT_MAGNETOMETER
@@ -24,7 +25,7 @@ print(sys.path)
 try:
     sys.path.index(module_abspath)
     # from utils.Dumper import Dumper
-    from DumperDrone import Dumper as DumperBNO08x
+    from DumperDroneEKFgrav import Dumper as DumperBNO08x
     # from utils.AnglesComp import AnglesComp
     from PostprocDefault import PostprocDefault
 except ValueError:
@@ -57,11 +58,13 @@ if args.sensor == "mpu":
     dumper = None#Dumper(sensor=sensor, postproc=postproc)
 else:
     i2c = busio.I2C((1, 14), (1, 15))
-    sensor = BNO08X_I2C(i2c, address=0x4b)
-    sensor.enable_feature(BNO_REPORT_ACCELEROMETER)
-    sensor.enable_feature(BNO_REPORT_MAGNETOMETER)
-    sensor.enable_feature(BNO_REPORT_GYROSCOPE)
-    # sensor.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+    sensor = Imu(i2c, address=0x4b)
+        
+    # sensor = BNO08X_I2C(i2c, address=0x4b)
+    # sensor.enable_feature(BNO_REPORT_ACCELEROMETER)
+    # sensor.enable_feature(BNO_REPORT_MAGNETOMETER)
+    # sensor.enable_feature(BNO_REPORT_GYROSCOPE)
+    # # sensor.enable_feature(BNO_REPORT_ROTATION_VECTOR)
     dumper = DumperBNO08x(sensor=sensor, postproc=postproc)
 
 if args.date:
