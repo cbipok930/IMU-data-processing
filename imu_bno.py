@@ -7,6 +7,8 @@ import ahrs
 import math
 import numpy as np
 
+from scipy.spatial.transform import Rotation
+
 class Imu(BNO08X_I2C):
     def __init__(self, i2c_bus, reset=None, address=..., debug=False, features = [BNO_REPORT_ACCELEROMETER, BNO_REPORT_MAGNETOMETER, BNO_REPORT_GYROSCOPE]):
         super().__init__(i2c_bus, reset, address, debug)
@@ -56,21 +58,28 @@ class Imu(BNO08X_I2C):
     def get_magnetic_data(self):
         mx, my, mz = self.magnetic
         return {"x": mx, "y": my, "z": mz}
-    
+    """
     def q2angles(self, Q):
         rm = ahrs.common.orientation.q2R(Q)
         roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
         pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
         yaw = math.atan2(rm[1][0], rm[0][0])
-        return roll, pitch, yaw
+        return roll, pitch, yaw"""
 
+    
     def euler_to_quaternion(self):
-        (yaw, pitch, roll) = (self._filt_yaw, self._filt_pitch, self._filt_roll)
-        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
-        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
-        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-        return [qw, qx, qy, qz]
+        """
+        [w, x, y, z]
+        """
+        r = Rotation.from_euler("zyx", [self._filt_yaw, self._filt_pitch, self._filt_roll], degrees=False)
+        q = r.as_quat()
+        return [q[3], q[0], q[1], q[2]]
+        # (yaw, pitch, roll) = (self._filt_yaw, self._filt_pitch, self._filt_roll)
+        # qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        # qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        # qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        # qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        # return [qw, qx, qy, qz]
 
     #0.3**2 0.5**2 0.8**2
     def init_ekf(self, frame = "ENU", noises = [0.3**2, 0.5**2, 0.8**2]):
@@ -116,10 +125,14 @@ class Imu(BNO08X_I2C):
         # self.ekf_Q = self.ekf_module.update(self.ekf_Q,
                                             #  gyr=dict2arr(gyroscope_data),
                                             #    acc=dict2arr(accelerometer_data))
+        """
         rm = ahrs.common.orientation.q2R(self.ekf_Q)
         self._filt_roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
         self._filt_pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
         self._filt_yaw = math.atan2(rm[1][0], rm[0][0])
+        """
+        rm = Rotation.from_quat(np.array([self.ekf_Q[1], self.ekf_Q[2], self.ekf_Q[3], self.ekf_Q[0]]))
+        self._filt_roll, self._filt_pitch, self._filt_yaw = rm.as_euler("xyz", degrees=False)
 
         return (self._filt_roll, self._filt_pitch, self._filt_yaw)
     
@@ -335,6 +348,10 @@ if __name__ == "__main__":
     # show_magnetic_rpy()
     # show_builtin_rpy()
     # show_gravity()
+    frequency(process_func=Imu.get_ekf_gravity, count=10, n=40, init_functions=[lambda x: x.enable_feature(BNO_REPORT_ACCELEROMETER),
+                                                                lambda x: x.enable_feature(BNO_REPORT_MAGNETOMETER),
+                                                                lambda x: x.enable_feature(BNO_REPORT_GYROSCOPE)])
+    exit(0)
     from scipy.spatial.transform import Rotation as R
 
     i2c = busio.I2C((1, 14), (1, 15))
@@ -345,7 +362,6 @@ if __name__ == "__main__":
     device.enable_feature(BNO_REPORT_LINEAR_ACCELERATION)
     device.enable_feature(BNO_REPORT_GYROSCOPE)
     device.enable_feature(BNO_REPORT_MAGNETOMETER)
-
 
     speed = np.array([0., 0., 0.])
     position = np.array([0., 0., 0.])
