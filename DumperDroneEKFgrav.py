@@ -81,7 +81,7 @@ class Dumper():
                     data = self.__read_and_write_nsamp(n_samp)
                 else:
                     data = self.__read_and_write_duration(duration)
-                json.dump(data, f, indent=2)
+                json.dump(data, f)
         except FileNotFoundError:
             raise FileNotFoundError(f"No such directory: {os.path.dirname(self.filename)}")
     # def wait(self):
