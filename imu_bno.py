@@ -98,33 +98,27 @@ class Imu(BNO08X_I2C):
     #     self.quest_module = ahrs.filters.QUEST()
     #     self.quest_module.
     
-    def get_ekf_angles(self):
+    def get_ekf_angles(self, dat=None):
 
         if self.ekf_module is None or self.ekf_last_timestamp != self._last_timestamp:
             self.init_ekf()
-        # Get accelerometer data
-        accelerometer_data = self.get_accel_data()
 
-        # Get gyroscope data
-        gyroscope_data = self.get_gyro_data()
-
-        # Get magnetiic data
-        mag_data = self.get_magnetic_data()
+        if dat is None:
+            aX, aY, aZ = self.acceleration
+            gX, gY, gZ = self.gyro
+            mX, mY, mZ = self.magnetic
+        else:
+            aX, aY, aZ = dat[0]
+            gX, gY, gZ = dat[1]
+            mX, mY, mZ = dat[2]    
 
         end = time.time()
         self.ekf_module.Dt =  end - self._last_timestamp
         self.ekf_module.frequency = self.ekf_module.Dt ** (-1)
         self._last_timestamp = end
         self.ekf_last_timestamp = end
-        
-        # def deg2rad(dat):
-        #     return {'x': np.deg2rad(dat['x']), 'y': np.deg2rad(dat['y']), 'z': np.deg2rad(dat['z'])}
-        def dict2arr(dat):
-            return [dat['x'], dat['y'], dat['z']]
-        self.ekf_Q = self.ekf_module.update(self.ekf_Q, gyr=dict2arr(gyroscope_data), acc=dict2arr(accelerometer_data), mag=dict2arr(mag_data))
-        # self.ekf_Q = self.ekf_module.update(self.ekf_Q,
-                                            #  gyr=dict2arr(gyroscope_data),
-                                            #    acc=dict2arr(accelerometer_data))
+
+        self.ekf_Q = self.ekf_module.update(self.ekf_Q, gyr=[gX, gY, gZ], acc=[aX, aY, aZ], mag=[mX, mY, mZ])
         """
         rm = ahrs.common.orientation.q2R(self.ekf_Q)
         self._filt_roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
@@ -135,6 +129,36 @@ class Imu(BNO08X_I2C):
         self._filt_roll, self._filt_pitch, self._filt_yaw = rm.as_euler("xyz", degrees=False)
 
         return (self._filt_roll, self._filt_pitch, self._filt_yaw)
+    
+
+    def get_ekf_angles_seq(self):
+        tss = []
+        N = 20
+        if self.ekf_Q is None:
+            self.ekf_Q = [0, 0, 0, 1]
+        last_ts = time.time()
+        aD = []
+        gD = []
+        mD = []
+        for i in range(N):
+            aD.append(np.array(self.acceleration))
+            gD.append(np.array(self.gyro))
+            mD.append(np.array(self.magnetic))
+            end_ts = time.time()
+            tss.append(end_ts - last_ts)
+            last_ts = end_ts
+        freq = (sum(tss)/N)**(-1)
+        aD = np.array(aD)
+        gD = np.array(gD)
+        mD = np.array(mD)
+        ekf = ahrs.filters.EKF(gyr=gD, acc=aD, mag=mD, frequency=freq, q0=self.ekf_Q)
+        Q = ekf.Q[-1]
+        self.ekf_Q = list(Q)
+        rm = Rotation.from_quat(np.array([Q[1], Q[2], Q[3], Q[0]]))
+        self._filt_roll, self._filt_pitch, self._filt_yaw = rm.as_euler("xyz", degrees=False)
+        return (self._filt_roll, self._filt_pitch, self._filt_yaw)
+
+    
     
     def get_madgwick_angles(self):
 
@@ -162,8 +186,8 @@ class Imu(BNO08X_I2C):
 
         return (self._filt_roll, self._filt_pitch, self._filt_yaw)
     
-    def get_ekf_gravity(self):
-        r, p, y = self.get_ekf_angles()
+    def get_ekf_gravity(self, dat=None):
+        r, p, y = self.get_ekf_angles(dat)
         g = (0, 0, 9.8)
         x1 = -math.cos(y)* math.cos(p)
         x2 = -math.sin(y) * math.cos(p)
@@ -244,11 +268,10 @@ def show_filtred_rpy(filter = Imu.get_ekf_angles):
 
 def show_gravity():
     i2c = busio.I2C((1, 14), (1, 15))
-    device = Imu(i2c, address=0x4b, features=[BNO_REPORT_GRAVITY, BNO_REPORT_ACCELEROMETER])
+    device = Imu(i2c, address=0x4b, features=[BNO_REPORT_GRAVITY])
     while True:
-        print("GRAVITY: ", device.gravity)
-        print("ACC: ", device.acceleration)
-        time.sleep(0.1)
+        g1, g2, g3 = device.gravity
+        print("GRAVITY: ", g1, g2, g3)
 
 def show_filtred_gravity():
     i2c = busio.I2C((1, 14), (1, 15))
@@ -348,11 +371,13 @@ if __name__ == "__main__":
     # show_magnetic_rpy()
     # show_builtin_rpy()
     # show_gravity()
-    frequency(process_func=Imu.get_ekf_gravity, count=10, n=40, init_functions=[lambda x: x.enable_feature(BNO_REPORT_ACCELEROMETER),
+    frequency(process_func=Imu.get_data_to_nn, count=100, n=40, init_functions=[lambda x: x.enable_feature(BNO_REPORT_ACCELEROMETER),
                                                                 lambda x: x.enable_feature(BNO_REPORT_MAGNETOMETER),
                                                                 lambda x: x.enable_feature(BNO_REPORT_GYROSCOPE)])
     exit(0)
+    show_filtred_gravity()
     from scipy.spatial.transform import Rotation as R
+    frequency(process_func=lambda x: Imu.gravity, count=100, n=40, init_functions=[lambda x: x.enable_feature(BNO_REPORT_GRAVITY)])
 
     i2c = busio.I2C((1, 14), (1, 15))
     device = Imu(i2c, address=0x4b, features=[BNO_REPORT_ROTATION_VECTOR])

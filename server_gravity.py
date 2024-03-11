@@ -2,6 +2,7 @@ from imu_bno import Imu
 import busio
 import numpy as np
 import cv2
+from adafruit_bno08x import BNO_REPORT_GRAVITY
 
 
 import socket
@@ -24,8 +25,9 @@ def server_program():
 
         i2c = busio.I2C((1, 14), (1, 15))
         device = Imu(i2c, address=0x4b)
+        device.enable_feature(BNO_REPORT_GRAVITY)
         X = 200
-        Y = 100
+        Y = 200
         G = 9.80665
         # image = np.zeros((X, Y))
         while True:
@@ -33,10 +35,15 @@ def server_program():
             if not data:
                 # if data is not received break
                 break
+            g1b, g2b, g3b = device.gravity
             g1, g2, g3 = device.get_ekf_gravity()
             x = int(((g1 + G) / (2 * G)) * X) - 1
             y = int(((-g2 + G) / (2 * G)) * Y) - 1
-            data = f"{X};{Y};{x};{y}"
+            
+            xb = int(((g1b + G) / (2 * G)) * X) - 1
+            yb = int(((-g2b + G) / (2 * G)) * Y) - 1
+            data = f"{X};{Y};{x};{y};{xb};{yb}"
+            print(data)
             conn.send(data.encode())  # send data to the client
         conn.close()  # close the connection
 

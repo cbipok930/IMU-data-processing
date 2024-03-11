@@ -1,10 +1,7 @@
 import os
-from ReaderBNO08x import Reader
 import time
 import datetime
-import threading as th
 import json
-import numpy as np
 
 from imu_bno import Imu
 

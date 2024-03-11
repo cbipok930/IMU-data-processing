@@ -54,7 +54,7 @@ class TrajRegression(nn.Module):
 
     return output
 
-path = "entire_model.pt"
+path = "entire_model_md2.pt"
 model = torch.load(path)
 print(model.eval())
 
@@ -64,41 +64,43 @@ device = Imu(i2c, address=0x4b)
 g0 = [0., 0., -9.8]
 t0 = time.time()
 
-while True:
-    t1 = time.time()
-    accX, accY, accZ = device.acceleration
-    gyroX, gyroY, gyroZ = device.gyro
-    magnX, magnY, magnZ = device.magnetic
-    a = device.get_ekf_gravity()
-    t2 = time.time()
+# while True:
+#     t1 = time.time()
+#     accX, accY, accZ = device.acceleration
+#     gyroX, gyroY, gyroZ = device.gyro
+#     magnX, magnY, magnZ = device.magnetic
+#     a = device.get_ekf_gravity()
+#     t2 = time.time()
 
-    ti = (t2 + t1)/2  
-    F = (ti - t0) ** (-1)
-    input = [g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]
-    # print("input=", input)
-    out = model(torch.Tensor([g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]))
-    out = torch.Tensor.numpy(out)
-    print(a, out)
-    t0 = ti
-    g0 = out
+#     ti = (t2 + t1)/2  
+#     F = (ti - t0) ** (-1)
+#     input = [g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]
+#     # print("input=", input)
+#     out = model(torch.Tensor([g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]))
+#     out = torch.Tensor.numpy(out)
+#     print(out)
+#     t0 = ti
+#     g0 = out
 t0 = time.time()
 
 while True:
     qq = []
-    for i in range(7):
+    n = 30
+    for i in range(n):
         t1 = time.time()
         accX, accY, accZ = device.acceleration
         gyroX, gyroY, gyroZ = device.gyro
         magnX, magnY, magnZ = device.magnetic
-        time.sleep(250**-1)
+        # time.sleep(200**-1)
+        device.get_ekf_angles()
         t2 = time.time()
 
         ti = (t2 + t1)/2
         qq.append([ti, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ])
     qq = np.array(qq)
-    freqs = np.array([(((qq[:, 0][i+1] - qq[:, 0][i])/2) ** -1) for i in list(range(0, 7-1))])
+    freqs = np.array([(((qq[:, 0][i+1] - qq[:, 0][i])/2) ** -1) for i in list(range(0, n-1))])
     freqs = np.insert(freqs, 0, freqs[0])
-    for i in range(7):
+    for i in range(n):
        input = [g0[0], g0[1], g0[2], freqs[i], qq[i][1], qq[i][2], qq[i][3], qq[i][4], qq[i][5], qq[i][6], qq[i][7], qq[i][8], qq[i][9]]
        out = model(torch.Tensor(input))
        out = torch.Tensor.numpy(out)
