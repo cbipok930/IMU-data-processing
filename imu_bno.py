@@ -20,7 +20,7 @@ class Imu(BNO08X_I2C):
             # self.enable_feature(BNO_REPORT_MAGNETOMETER)
             # self.enable_feature(BNO_REPORT_GYROSCOPE)
             # self.enable_feature(BNO_REPORT_GRAVITY)
-        self.begin_calibration()
+        # self.begin_calibration()
 
         self._filt_pitch = 0
         self._filt_roll = 0

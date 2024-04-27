@@ -28,18 +28,31 @@ def t265_to_bno(vec):
     return vec
 
 import pyrealsense2 as rs2
-ctx = rs2.context()
-list = ctx.query_devices()
-for dev in list:
-      serial = dev.query_sensors()[0].get_info(rs2.camera_info.serial_number)
-      # compare to desired SN
-      print(dev)
-      dev.hardware_reset()
+
+ctx = rs2.context() 
+# dev = rs2.get_device_from_context(ctx)
+dev = ctx.query_devices().front()
+dev.hardware_reset()
+# hub = rs.device_hub(ctx)
+# dev = hub.wait_for_device()
+
+# ctx = rs2.context()
+# list = ctx.query_devices()
+# glob_dev = None
+# print(list)
+# for dev in list:
+#       glob_dev = dev
+#       serial = dev.query_sensors()[0].get_info(rs2.camera_info.serial_number)
+#       # compare to desired SN
+#       print(dev)
+#       dev.hardware_reset()
+
 
 
 
 pipeline = rs.pipeline()
 config = rs.config()
+config.enable_stream(rs.stream.pose)
 pipeline.start(config)
 
         # self.filename = filename
@@ -49,7 +62,17 @@ pipeline.start(config)
         # a = self.get_data()
 import time
 while True:
-    frames = pipeline.wait_for_frames(1500)
+    frames = pipeline.wait_for_frames(15000)
+    # frames = pipeline.try_wait_for_frames(1500)
+    # while (frames[0] is False):
+    #     print("failed")
+    #     pipeline.stop()
+    #     glob_dev.hardware_reset()
+    #     pipeline = rs.pipeline()
+    #     config = rs.config()
+    #     pipeline.start(config)
+    #     frames = pipeline.try_wait_for_frames(1500)
+    # print(frames)
     dof6 = rs.pose_frame(frames[4]).get_pose_data()
     pose = {"x": dof6.translation.x, "y": dof6.translation.y, "z": dof6.translation.z}
     rot = {"x": dof6.rotation.x, "y": dof6.rotation.y, "z": dof6.rotation.z, "w": dof6.rotation.w}

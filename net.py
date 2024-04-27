@@ -54,7 +54,7 @@ class TrajRegression(nn.Module):
 
     return output
 
-path = "entire_model_md2.pt"
+path = "entire_model_bsx4.pt"
 model = torch.load(path)
 print(model.eval())
 
@@ -64,23 +64,23 @@ device = Imu(i2c, address=0x4b)
 g0 = [0., 0., -9.8]
 t0 = time.time()
 
-# while True:
-#     t1 = time.time()
-#     accX, accY, accZ = device.acceleration
-#     gyroX, gyroY, gyroZ = device.gyro
-#     magnX, magnY, magnZ = device.magnetic
-#     a = device.get_ekf_gravity()
-#     t2 = time.time()
+while True:
+    t1 = time.time()
+    accX, accY, accZ = device.acceleration
+    gyroX, gyroY, gyroZ = device.gyro
+    magnX, magnY, magnZ = device.magnetic
+    a = device.get_ekf_gravity()
+    t2 = time.time()
 
-#     ti = (t2 + t1)/2  
-#     F = (ti - t0) ** (-1)
-#     input = [g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]
-#     # print("input=", input)
-#     out = model(torch.Tensor([g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]))
-#     out = torch.Tensor.numpy(out)
-#     print(out)
-#     t0 = ti
-#     g0 = out
+    ti = (t2 + t1)/2  
+    F = (ti - t0) ** (-1)
+    input = [g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]
+    # print("input=", input)
+    out = model(torch.Tensor([g0[0], g0[1], g0[2], F, accX, accY, accZ, gyroX, gyroY, gyroZ, magnX, magnY, magnZ]))
+    out = torch.Tensor.numpy(out)
+    print(out)
+    t0 = ti
+    g0 = out
 t0 = time.time()
 
 while True:

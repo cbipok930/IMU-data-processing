@@ -10,7 +10,7 @@ import socket
 
 def server_program():
     host = socket.gethostname()
-    host = "127.0.0.1"
+    host = "192.168.43.209"#"192.168.0.104"
     port = 5000  
 
     server_socket = socket.socket()  
