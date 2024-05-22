@@ -58,14 +58,30 @@ class Imu(BNO08X_I2C):
     def get_magnetic_data(self):
         mx, my, mz = self.magnetic
         return {"x": mx, "y": my, "z": mz}
-    """
-    def q2angles(self, Q):
-        rm = ahrs.common.orientation.q2R(Q)
-        roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
-        pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
-        yaw = math.atan2(rm[1][0], rm[0][0])
-        return roll, pitch, yaw"""
 
+    def q2angles(self, Q):
+        # rm = ahrs.common.orientation.q2R(Q)
+        # roll = math.atan2(rm[2][1],rm[2][2]);#-math.asin(rm[0][2])
+        # pitch = math.atan2(-rm[2][0], math.sqrt(rm[2][1]**2 + rm[2][2]**2))#math.atan2(-rm[1][2], rm[2][2])
+        # yaw = math.atan2(rm[1][0], rm[0][0])
+        # return roll, pitch, yaw
+        dqw, dqx, dqy, dqz = Q
+        norm = math.sqrt(dqw * dqw + dqx * dqx + dqy * dqy + dqz * dqz)
+        dqw = dqw / norm
+        dqx = dqx / norm
+        dqy = dqy / norm
+        dqz = dqz / norm
+        sinr_cosp = +2.0 * (dqw * dqx + dqy * dqz)
+        cosr_cosp = +1.0 - 2.0 * (dqx * dqx + dqy * dqy)
+        roll_raw = math.atan2(sinr_cosp, cosr_cosp)
+        sinp = math.sqrt(+1.0 + 2.0 * (dqw * dqy - dqx * dqz))
+        cosp = math.sqrt(+1.0 - 2.0 * (dqw * dqy - dqx * dqz))
+        pitch_raw = +2.0 * math.atan2(sinp, cosp) - (math.pi / 2.0)
+        ysqr = dqy * dqy
+        t3 = +2.0 * (dqw * dqz + dqx * dqy)
+        t4 = +1.0 - 2.0 * (ysqr + dqz * dqz)
+        yaw_raw = math.atan2(t3, t4)
+        return roll_raw, pitch_raw, yaw_raw
     
     def euler_to_quaternion(self):
         """
@@ -371,6 +387,7 @@ if __name__ == "__main__":
     # show_magnetic_rpy()
     # show_builtin_rpy()
     # show_gravity()
+    summary_monitor()
     frequency(process_func=Imu.get_data_to_nn, count=100, n=40, init_functions=[lambda x: x.enable_feature(BNO_REPORT_ACCELEROMETER),
                                                                 lambda x: x.enable_feature(BNO_REPORT_MAGNETOMETER),
                                                                 lambda x: x.enable_feature(BNO_REPORT_GYROSCOPE)])
